@@ -47,6 +47,15 @@ fi
 
 webui="$(unzip -p "$module_zip" webroot/index.html)"
 grep -Fq "/data/adb/modules/$module_id/scripts/oxidebotctl" <<<"$webui"
+grep -Fq 'setInterval(refreshHomeStatus, AUTO_REFRESH_MS)' <<<"$webui"
+grep -Fq 'window.oxideRefreshStatus = refreshHomeStatus' <<<"$webui"
+if grep -Fq "document.visibilityState === 'visible'" <<<"$webui"; then
+  echo 'auto refresh still depends on unreliable WebView visibility state' >&2
+  exit 1
+fi
+sed -n '/^  <script>$/,/^  <\/script>$/p' "$project_dir/webroot/index.html" \
+  | sed '1d;$d' \
+  | node --check
 
 jq -e \
   --arg version "v$version_name" \

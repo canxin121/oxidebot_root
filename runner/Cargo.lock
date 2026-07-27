@@ -1373,8 +1373,7 @@ dependencies = [
 [[package]]
 name = "telegram_bot_oxidebot"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fe4b55aecaabdd936519e9538cd75e8521b1196ef01a506e1cc1303e1c4c628"
+source = "git+https://github.com/canxin121/telegram_bot_oxidebot#c6373985af7399db03db711fc4c5208720517904"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1391,6 +1390,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "webpki-root-certs",
 ]
 
 [[package]]

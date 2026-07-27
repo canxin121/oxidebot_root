@@ -220,9 +220,11 @@
   <script>
     (() => {
       const CTL = '/data/adb/modules/__MODULE_ID__/scripts/oxidebotctl';
+      const AUTO_REFRESH_MS = 3000;
       const $ = (selector) => document.querySelector(selector);
       let state = { status: 'unknown' };
       let busy = false;
+      let statusRefreshPromise = null;
       let toastTimer;
 
       function shellExec(command) {
@@ -302,19 +304,31 @@
         $('#lastUpdated').textContent = `更新于 ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
       }
 
-      async function refreshStatus(silent = false) {
+      function refreshStatus(silent = false) {
+        if (statusRefreshPromise) return statusRefreshPromise;
         const icon = $('#refreshButton svg');
         if (!silent) icon.classList.add('spin');
-        try {
-          const result = await shellExec(`${CTL} status --properties`);
-          if (result.errno !== 0) throw new Error(result.stderr || '状态读取失败');
-          state = parseProperties(result.stdout);
-          renderStatus();
-        } catch (error) {
-          $('#statusTitle').textContent = '连接失败';
-          $('#statusDetail').textContent = String(error.message || error);
-          if (!silent) notify('无法读取 Root 服务状态');
-        } finally { icon.classList.remove('spin'); }
+        statusRefreshPromise = (async () => {
+          try {
+            const result = await shellExec(`${CTL} status --properties`);
+            if (result.errno !== 0) throw new Error(result.stderr || '状态读取失败');
+            state = parseProperties(result.stdout);
+            renderStatus();
+          } catch (error) {
+            $('#statusTitle').textContent = '连接失败';
+            $('#statusDetail').textContent = String(error.message || error);
+            if (!silent) notify('无法读取 Root 服务状态');
+          } finally {
+            icon.classList.remove('spin');
+            statusRefreshPromise = null;
+          }
+        })();
+        return statusRefreshPromise;
+      }
+
+      function refreshHomeStatus() {
+        const activePage = $('.page.active');
+        if (activePage?.dataset.page === 'home') refreshStatus(true);
       }
 
       async function serviceAction(action) {
@@ -381,6 +395,7 @@
       function navigate(target) {
         document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.dataset.page === target));
         document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.target === target));
+        if (target === 'home') refreshStatus(true);
         if (target === 'config') loadConfig();
         if (target === 'logs') loadLogs();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -394,8 +409,14 @@
       $('#clearLogs').addEventListener('click', clearLogs);
       document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => navigate(item.dataset.target)));
 
+      window.oxideRefreshStatus = refreshHomeStatus;
       refreshStatus();
-      setInterval(() => { if (document.visibilityState === 'visible' && $('.page.active').dataset.page === 'home') refreshStatus(true); }, 5000);
+      setInterval(refreshHomeStatus, AUTO_REFRESH_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'hidden') refreshHomeStatus();
+      });
+      window.addEventListener('focus', refreshHomeStatus);
+      window.addEventListener('pageshow', refreshHomeStatus);
     })();
   </script>
 </body>

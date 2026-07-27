@@ -59,6 +59,16 @@ public final class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) {
+            webView.evaluateJavascript(
+                    "if(typeof window.oxideRefreshStatus==='function'){window.oxideRefreshStatus();}",
+                    null);
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         webView.removeJavascriptInterface("OxideNative");
         webView.destroy();
