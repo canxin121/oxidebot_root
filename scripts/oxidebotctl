@@ -1,0 +1,357 @@
+#!/system/bin/sh
+
+MODDIR=${OXIDEBOT_MODDIR:-${0%/*}/..}
+DATA_DIR=${OXIDEBOT_DATA_DIR:-/data/adb/oxidebot}
+RUN_DIR="$DATA_DIR/run"
+LOG_DIR="$DATA_DIR/logs"
+WORK_DIR="$DATA_DIR/data"
+ENV_FILE="$DATA_DIR/env.conf"
+PID_FILE="$RUN_DIR/oxidebot.pid"
+START_FILE="$RUN_DIR/started_at"
+EXIT_FILE="$RUN_DIR/last_exit"
+LOCK_DIR="$RUN_DIR/control.lock"
+LOG_FILE="$LOG_DIR/oxidebot.log"
+
+ensure_dirs() {
+  mkdir -p "$RUN_DIR" "$LOG_DIR" "$WORK_DIR"
+  chmod 0700 "$DATA_DIR" "$RUN_DIR" "$LOG_DIR" "$WORK_DIR" 2>/dev/null
+}
+
+now() {
+  date +%s
+}
+
+read_pid() {
+  [ -f "$PID_FILE" ] || return 1
+  pid=$(sed -n '1p' "$PID_FILE" 2>/dev/null)
+  case "$pid" in *[!0-9]*|'') return 1 ;; esac
+  printf '%s\n' "$pid"
+}
+
+is_running() {
+  pid=$(read_pid) || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  if [ -r "/proc/$pid/cmdline" ]; then
+    tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'oxidebot'
+    return $?
+  fi
+  return 0
+}
+
+detect_abi() {
+  if [ -n "${OXIDEBOT_ABI:-}" ]; then
+    printf '%s\n' "$OXIDEBOT_ABI"
+    return
+  fi
+  abi=$(getprop ro.product.cpu.abi 2>/dev/null)
+  [ -n "$abi" ] || abi=$(uname -m 2>/dev/null)
+  case "$abi" in
+    arm64-v8a|aarch64*|arm64*) printf '%s\n' arm64-v8a ;;
+    armeabi-v7a|armeabi|armv7*|armv8l) printf '%s\n' armeabi-v7a ;;
+    x86_64) printf '%s\n' x86_64 ;;
+    x86|i?86) printf '%s\n' x86 ;;
+    *) printf '%s\n' unknown ;;
+  esac
+}
+
+binary_path() {
+  abi=$(detect_abi)
+  printf '%s/bin/%s/oxidebot\n' "$MODDIR" "$abi"
+}
+
+detect_root() {
+  if [ -d /data/adb/ap ] || command -v apd >/dev/null 2>&1; then
+    printf '%s\n' APatch
+  elif [ -n "$(getprop ro.sukisu.ultra.version 2>/dev/null)" ] || [ -d /data/adb/sukisu ]; then
+    printf '%s\n' 'SukiSU Ultra'
+  elif [ -d /data/adb/ksu ] || command -v ksud >/dev/null 2>&1; then
+    printf '%s\n' KernelSU
+  elif command -v magisk >/dev/null 2>&1 || [ -d /data/adb/magisk ]; then
+    printf '%s\n' Magisk
+  else
+    printf '%s\n' Unknown
+  fi
+}
+
+enabled() {
+  [ -f "$DATA_DIR/enabled" ] && [ ! -f "$DATA_DIR/disabled" ]
+}
+
+configured() {
+  [ -f "$ENV_FILE" ] || return 1
+  token=$(sed -n 's/^TELEGRAM_BOT_TOKEN=//p' "$ENV_FILE" | tail -n 1)
+  [ -n "$token" ]
+}
+
+set_description() {
+  state=$1
+  prop="$MODDIR/module.prop"
+  [ -f "$prop" ] || return 0
+  sed -i "s|^description=.*|description=OxideBot 后台服务 · $state|" "$prop" 2>/dev/null
+}
+
+acquire_lock() {
+  ensure_dirs
+  attempts=0
+  while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    owner=$(sed -n '1p' "$LOCK_DIR/pid" 2>/dev/null)
+    case "$owner" in
+      *[!0-9]*|'') ;;
+      *)
+        if ! kill -0 "$owner" 2>/dev/null; then
+          rm -f "$LOCK_DIR/pid"
+          rmdir "$LOCK_DIR" 2>/dev/null
+          continue
+        fi
+        ;;
+    esac
+    attempts=$((attempts + 1))
+    [ "$attempts" -ge 50 ] && return 1
+    sleep 0.1
+  done
+  printf '%s\n' $$ > "$LOCK_DIR/pid"
+  trap 'rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null' EXIT INT TERM
+}
+
+release_lock() {
+  rm -f "$LOCK_DIR/pid"
+  rmdir "$LOCK_DIR" 2>/dev/null
+  trap - EXIT INT TERM
+}
+
+load_environment() {
+  [ -f "$ENV_FILE" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line=$(printf '%s' "$line" | tr -d '\r')
+    case "$line" in ''|'#'*) continue ;; esac
+    key=${line%%=*}
+    value=${line#*=}
+    [ "$key" != "$line" ] || continue
+    case "$key" in
+      [A-Za-z_]* ) ;;
+      *) continue ;;
+    esac
+    case "$key" in *[!A-Za-z0-9_]*) continue ;; esac
+    export "$key=$value"
+  done < "$ENV_FILE"
+}
+
+rotate_log() {
+  [ -f "$LOG_FILE" ] || return 0
+  size=$(wc -c < "$LOG_FILE" 2>/dev/null)
+  case "$size" in *[!0-9]*|'') size=0 ;; esac
+  if [ "$size" -gt 2097152 ]; then
+    [ -f "$LOG_FILE.2" ] && mv -f "$LOG_FILE.2" "$LOG_FILE.3"
+    [ -f "$LOG_FILE.1" ] && mv -f "$LOG_FILE.1" "$LOG_FILE.2"
+    mv -f "$LOG_FILE" "$LOG_FILE.1"
+  fi
+}
+
+start_service() {
+  acquire_lock || { echo "控制器正忙，请稍后重试" >&2; return 1; }
+  if is_running; then
+    echo "OxideBot 已在运行 (PID $(read_pid))"
+    release_lock
+    return 0
+  fi
+
+  bin=$(binary_path)
+  if [ ! -f "$bin" ]; then
+    echo "找不到当前架构的二进制：$bin" >&2
+    set_description "❌ 缺少二进制"
+    release_lock
+    return 2
+  fi
+  chmod 0755 "$bin"
+
+  if ! configured; then
+    echo "尚未配置 TELEGRAM_BOT_TOKEN" >&2
+    set_description "⚠️ 等待配置"
+    release_lock
+    return 3
+  fi
+
+  load_environment
+  rotate_log
+  printf '\n[%s] starting OxideBot\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG_FILE"
+  cd "$WORK_DIR" || { release_lock; return 1; }
+  "$bin" >> "$LOG_FILE" 2>&1 &
+  new_pid=$!
+  printf '%s\n' "$new_pid" > "$PID_FILE"
+  now > "$START_FILE"
+  sleep 1
+
+  if is_running; then
+    echo "OxideBot 启动成功 (PID $new_pid)"
+    set_description "✅ 运行中"
+    release_lock
+    return 0
+  fi
+
+  printf '%s\n' "$(now):start-failed" > "$EXIT_FILE"
+  rm -f "$PID_FILE"
+  set_description "❌ 启动失败"
+  echo "OxideBot 启动失败，请检查日志" >&2
+  release_lock
+  return 4
+}
+
+stop_service() {
+  acquire_lock || { echo "控制器正忙，请稍后重试" >&2; return 1; }
+  if ! is_running; then
+    rm -f "$PID_FILE"
+    echo "OxideBot 已停止"
+    set_description "⏹ 已停止"
+    release_lock
+    return 0
+  fi
+
+  pid=$(read_pid)
+  kill "$pid" 2>/dev/null
+  count=0
+  while kill -0 "$pid" 2>/dev/null && [ "$count" -lt 50 ]; do
+    sleep 0.1
+    count=$((count + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null
+  fi
+  rm -f "$PID_FILE"
+  printf '%s\n' "$(now):stopped" > "$EXIT_FILE"
+  echo "OxideBot 已停止"
+  set_description "⏹ 已停止"
+  release_lock
+}
+
+status_properties() {
+  ensure_dirs
+  if is_running; then
+    service_status=running
+    pid=$(read_pid)
+  else
+    service_status=stopped
+    pid=
+  fi
+  if enabled; then autostart=true; else autostart=false; fi
+  if configured; then has_config=true; else has_config=false; fi
+  started_at=$(sed -n '1p' "$START_FILE" 2>/dev/null)
+  case "$started_at" in *[!0-9]*|'') started_at=0 ;; esac
+  if [ "$service_status" = running ] && [ "$started_at" -gt 0 ]; then
+    uptime=$(( $(now) - started_at ))
+  else
+    uptime=0
+  fi
+  last_exit=$(sed -n '1p' "$EXIT_FILE" 2>/dev/null)
+  version=$(sed -n 's/^version=//p' "$MODDIR/module.prop" 2>/dev/null)
+  printf 'status=%s\n' "$service_status"
+  printf 'pid=%s\n' "$pid"
+  printf 'autostart=%s\n' "$autostart"
+  printf 'configured=%s\n' "$has_config"
+  printf 'uptime_seconds=%s\n' "$uptime"
+  printf 'started_at=%s\n' "$started_at"
+  printf 'last_exit=%s\n' "$last_exit"
+  printf 'abi=%s\n' "$(detect_abi)"
+  printf 'root_manager=%s\n' "$(detect_root)"
+  printf 'version=%s\n' "$version"
+  printf 'binary=%s\n' "$(binary_path)"
+  printf 'data_dir=%s\n' "$DATA_DIR"
+}
+
+status_human() {
+  if is_running; then
+    echo "状态：✅ 运行中 (PID $(read_pid))"
+  else
+    echo "状态：⏹ 已停止"
+  fi
+  if enabled; then echo "自动启动：已启用"; else echo "自动启动：已关闭"; fi
+  if configured; then echo "环境配置：已配置"; else echo "环境配置：等待 TELEGRAM_BOT_TOKEN"; fi
+  echo "Root：$(detect_root)"
+  echo "架构：$(detect_abi)"
+  echo "日志：$LOG_FILE"
+}
+
+validate_env_file() {
+  candidate=$1
+  [ -f "$candidate" ] || return 1
+  lines=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    lines=$((lines + 1))
+    [ "$lines" -le 256 ] || return 1
+    line=$(printf '%s' "$line" | tr -d '\r')
+    case "$line" in ''|'#'*) continue ;; esac
+    key=${line%%=*}
+    [ "$key" != "$line" ] || return 1
+    case "$key" in [A-Za-z_]*) ;; *) return 1 ;; esac
+    case "$key" in *[!A-Za-z0-9_]*) return 1 ;; esac
+  done < "$candidate"
+}
+
+config_import() {
+  ensure_dirs
+  encoded=$1
+  [ ${#encoded} -le 65536 ] || { echo "配置过大" >&2; return 1; }
+  temp="$RUN_DIR/env.conf.tmp.$$"
+  if ! printf '%s' "$encoded" | base64 -d > "$temp" 2>/dev/null; then
+    rm -f "$temp"
+    echo "配置解码失败" >&2
+    return 1
+  fi
+  if ! validate_env_file "$temp"; then
+    rm -f "$temp"
+    echo "配置格式无效：只允许 KEY=value、空行和注释" >&2
+    return 1
+  fi
+  mv -f "$temp" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+  echo "配置已安全保存"
+}
+
+command=${1:-status}
+case "$command" in
+  start) start_service ;;
+  stop) stop_service ;;
+  restart) stop_service && start_service ;;
+  enable)
+    ensure_dirs
+    rm -f "$DATA_DIR/disabled"
+    : > "$DATA_DIR/enabled"
+    start_service
+    ;;
+  disable)
+    ensure_dirs
+    rm -f "$DATA_DIR/enabled"
+    : > "$DATA_DIR/disabled"
+    stop_service
+    ;;
+  toggle)
+    if is_running; then "$0" disable; else "$0" enable; fi
+    ;;
+  is-running) is_running ;;
+  status)
+    if [ "${2:-}" = "--properties" ]; then status_properties; else status_human; fi
+    ;;
+  logs)
+    count=${2:-200}
+    case "$count" in *[!0-9]*|'') count=200 ;; esac
+    [ "$count" -gt 1000 ] && count=1000
+    [ -f "$LOG_FILE" ] && tail -n "$count" "$LOG_FILE"
+    ;;
+  clear-logs)
+    ensure_dirs
+    : > "$LOG_FILE"
+    echo "日志已清空"
+    ;;
+  config-export)
+    ensure_dirs
+    [ -f "$ENV_FILE" ] || cp "$MODDIR/env.example" "$ENV_FILE"
+    base64 < "$ENV_FILE" | tr -d '\n'
+    ;;
+  config-import)
+    [ -n "${2:-}" ] || { echo "缺少 Base64 配置" >&2; exit 1; }
+    config_import "$2"
+    ;;
+  *)
+    echo "用法：$0 {start|stop|restart|enable|disable|toggle|status|logs|clear-logs|config-export|config-import}" >&2
+    exit 64
+    ;;
+esac

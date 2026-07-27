@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07110f">
+  <title>OxideBot</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07110f;
+      --panel: rgba(18, 36, 32, .82);
+      --panel-solid: #10231f;
+      --line: rgba(159, 255, 208, .12);
+      --text: #effff7;
+      --muted: #93aaa1;
+      --accent: #70f0b0;
+      --accent-2: #33c789;
+      --danger: #ff818c;
+      --warning: #ffc76b;
+      --shadow: 0 18px 55px rgba(0, 0, 0, .28);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans SC", sans-serif;
+      background:
+        radial-gradient(circle at 85% 0%, rgba(62, 210, 146, .16), transparent 35rem),
+        radial-gradient(circle at 0% 55%, rgba(42, 118, 91, .12), transparent 28rem), var(--bg);
+      min-height: 100vh;
+    }
+    button, textarea { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(100%, 840px); margin: auto; padding: calc(18px + env(safe-area-inset-top)) 18px calc(104px + env(safe-area-inset-bottom)); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 43px; height: 43px; border-radius: 14px; display: grid; place-items: center;
+      background: linear-gradient(145deg, #8affc5, #2dba7e); color: #06120e; box-shadow: 0 10px 30px rgba(58, 221, 148, .25);
+    }
+    .mark svg { width: 26px; height: 26px; }
+    .brand-title { font-weight: 760; letter-spacing: -.03em; font-size: 20px; }
+    .brand-sub { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 1px; }
+    .icon-btn {
+      border: 1px solid var(--line); background: rgba(255,255,255,.035); width: 42px; height: 42px;
+      border-radius: 14px; display: grid; place-items: center; cursor: pointer;
+    }
+    .icon-btn:active { transform: scale(.95); }
+    .icon-btn svg { width: 19px; height: 19px; }
+    .page { display: none; animation: rise .24s ease; }
+    .page.active { display: block; }
+    @keyframes rise { from { opacity: 0; transform: translateY(5px); } }
+    .hero {
+      position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 30px; padding: 26px;
+      background: linear-gradient(140deg, rgba(26, 67, 55, .92), rgba(12, 29, 25, .94)); box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: ""; position: absolute; width: 220px; height: 220px; right: -80px; top: -95px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(112, 240, 176, .22), transparent 68%);
+    }
+    .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+    .status-line { display: flex; align-items: center; gap: 12px; margin: 9px 0 5px; }
+    .status-line h1 { margin: 0; font-size: clamp(28px, 8vw, 43px); letter-spacing: -.055em; line-height: 1.08; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 7px rgba(147,170,161,.09); }
+    .dot.running { background: var(--accent); box-shadow: 0 0 0 7px rgba(112,240,176,.11), 0 0 26px var(--accent-2); }
+    .hero-detail { color: var(--muted); font-size: 14px; min-height: 21px; }
+    .actions { display: flex; gap: 11px; margin-top: 24px; position: relative; z-index: 2; }
+    .btn {
+      border: 0; border-radius: 15px; min-height: 48px; padding: 0 20px; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px; transition: .16s ease;
+    }
+    .btn:active { transform: scale(.975); }
+    .btn:disabled { opacity: .48; pointer-events: none; }
+    .btn-primary { background: var(--accent); color: #06130e; flex: 1; }
+    .btn-secondary { background: rgba(255,255,255,.075); color: var(--text); border: 1px solid var(--line); }
+    .btn-danger { background: rgba(255, 129, 140, .12); color: #ffafb6; border: 1px solid rgba(255,129,140,.2); }
+    .btn svg { width: 18px; height: 18px; }
+    .section-head { display: flex; justify-content: space-between; align-items: end; margin: 27px 2px 13px; }
+    .section-head h2 { font-size: 16px; margin: 0; letter-spacing: -.02em; }
+    .section-head span { color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .metric, .card {
+      border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); backdrop-filter: blur(18px);
+    }
+    .metric { padding: 17px; min-height: 112px; }
+    .metric-icon { color: var(--accent); width: 20px; height: 20px; margin-bottom: 14px; }
+    .metric-label { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .metric-value { font-weight: 710; font-size: 15px; overflow-wrap: anywhere; }
+    .notice { display: none; margin-top: 12px; border-radius: 16px; padding: 14px 15px; color: #ffdda3; background: rgba(255,199,107,.09); border: 1px solid rgba(255,199,107,.17); font-size: 13px; line-height: 1.5; }
+    .notice.show { display: block; }
+    .page-title { margin: 5px 2px 7px; font-size: 29px; letter-spacing: -.045em; }
+    .page-intro { color: var(--muted); margin: 0 2px 21px; font-size: 14px; line-height: 1.6; }
+    .card { padding: 20px; }
+    .card + .card { margin-top: 12px; }
+    .card-title { margin: 0 0 7px; font-size: 16px; }
+    .card-desc { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 0 0 15px; }
+    .editor-wrap { position: relative; }
+    textarea {
+      display: block; width: 100%; min-height: 280px; resize: vertical; border-radius: 16px; border: 1px solid var(--line);
+      outline: none; padding: 15px; background: #081612; color: #dff8ec; line-height: 1.62;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+    }
+    textarea:focus { border-color: rgba(112,240,176,.48); box-shadow: 0 0 0 3px rgba(112,240,176,.07); }
+    .config-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; }
+    .secure { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+    .logs {
+      min-height: 420px; max-height: 62vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
+      background: #030907; color: #bad4c8; padding: 16px; margin: 0; border-radius: 16px; border: 1px solid var(--line);
+      font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .toolbar { display: flex; gap: 9px; margin-bottom: 12px; }
+    .about-logo { width: 72px; height: 72px; border-radius: 24px; margin-bottom: 18px; }
+    .facts { margin: 18px 0 0; border-top: 1px solid var(--line); }
+    .fact { display: flex; justify-content: space-between; gap: 18px; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+    .fact span:first-child { color: var(--muted); }
+    .fact span:last-child { text-align: right; overflow-wrap: anywhere; }
+    .bottom-nav {
+      position: fixed; z-index: 20; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      width: min(calc(100% - 28px), 620px); height: 70px; padding: 7px; border-radius: 24px; display: grid; grid-template-columns: repeat(4, 1fr);
+      background: rgba(10, 24, 20, .9); border: 1px solid var(--line); backdrop-filter: blur(22px); box-shadow: 0 16px 45px rgba(0,0,0,.4);
+    }
+    .nav-item { border: 0; background: transparent; color: var(--muted); border-radius: 17px; display: grid; place-content: center; gap: 3px; cursor: pointer; }
+    .nav-item.active { background: rgba(112,240,176,.1); color: var(--accent); }
+    .nav-item svg { width: 19px; height: 19px; margin: auto; }
+    .nav-item span { font-size: 10px; }
+    .toast {
+      position: fixed; z-index: 50; top: calc(20px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -18px);
+      opacity: 0; pointer-events: none; max-width: calc(100% - 36px); border: 1px solid var(--line); border-radius: 14px;
+      background: #163128; padding: 11px 16px; color: var(--text); font-size: 13px; box-shadow: var(--shadow); transition: .22s ease;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .spin { animation: spin .85s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (min-width: 620px) { .grid { grid-template-columns: repeat(4, 1fr); } .hero { padding: 34px; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 8.5 4.5 6M17 8.5 19.5 6M6.2 9.5h11.6a2 2 0 0 1 2 2v4.8a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2v-4.8a2 2 0 0 1 2-2Z"/><path d="M8 13.2h.01M16 13.2h.01M9 18.3V21M15 18.3V21" stroke-linecap="round"/></svg></div>
+        <div><div class="brand-title">OxideBot</div><div class="brand-sub">Root service</div></div>
+      </div>
+      <button class="icon-btn" id="refreshButton" aria-label="刷新"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.5 9A7.5 7.5 0 0 0 5.7 6.5L4 8m2 7a7.5 7.5 0 0 0 12.3 2.5L20 16" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </header>
+
+    <section class="page active" data-page="home">
+      <article class="hero">
+        <div class="eyebrow">Service status</div>
+        <div class="status-line"><span class="dot" id="statusDot"></span><h1 id="statusTitle">正在连接</h1></div>
+        <div class="hero-detail" id="statusDetail">读取 OxideBot 运行状态…</div>
+        <div class="actions">
+          <button class="btn btn-primary" id="mainAction">请稍候</button>
+          <button class="btn btn-secondary" id="restartAction" title="重启服务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6v5h-5"/><path d="M18.5 9A7.5 7.5 0 1 0 19 16" stroke-linecap="round"/></svg><span>重启</span></button>
+        </div>
+      </article>
+      <div class="notice" id="configNotice">还没有设置 Telegram Token。请打开「配置」页填写环境变量，保存后启动服务。</div>
+      <div class="section-head"><h2>运行概览</h2><span id="lastUpdated">—</span></div>
+      <div class="grid">
+        <div class="metric"><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg><div class="metric-label">运行时间</div><div class="metric-value" id="uptime">—</div></div>
+        <div class="metric"><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M20 9h3M1 15h3M20 15h3"/></svg><div class="metric-label">设备架构</div><div class="metric-value" id="abi">—</div></div>
+        <div class="metric"><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4.5 6v5c0 4.8 3.2 8.1 7.5 10 4.3-1.9 7.5-5.2 7.5-10V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg><div class="metric-label">Root 方案</div><div class="metric-value" id="rootManager">—</div></div>
+        <div class="metric"><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg><div class="metric-label">开机启动</div><div class="metric-value" id="autostart">—</div></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="config">
+      <h1 class="page-title">环境配置</h1>
+      <p class="page-intro">每行填写一个 <code>KEY=value</code>。配置保存在模块外部，升级不会覆盖；内容只会通过 Root 桥接在本机读写。</p>
+      <article class="card">
+        <h2 class="card-title">env.conf</h2>
+        <p class="card-desc">至少需要 <code>TELEGRAM_BOT_TOKEN</code>。无需引号；等号后的全部内容都会作为变量值原样传给 OxideBot。</p>
+        <div class="editor-wrap"><textarea id="envEditor" spellcheck="false" autocomplete="off" placeholder="TELEGRAM_BOT_TOKEN=\nRUST_LOG=info"></textarea></div>
+        <div class="config-actions">
+          <div class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>权限 0600</div>
+          <button class="btn btn-primary" id="saveConfig">保存配置</button>
+        </div>
+      </article>
+      <article class="card">
+        <h2 class="card-title">配置说明</h2>
+        <p class="card-desc" style="margin:0">配置文件不是 Shell 脚本。为了避免意外执行，命令替换和反引号只会作为普通文本传递。修改运行中的服务配置后，请回到首页执行一次重启。</p>
+      </article>
+    </section>
+
+    <section class="page" data-page="logs">
+      <h1 class="page-title">运行日志</h1>
+      <p class="page-intro">显示最近 300 行。日志在超过 2 MiB 后自动轮换，最多保留三份历史文件。</p>
+      <div class="toolbar"><button class="btn btn-secondary" id="refreshLogs">刷新</button><button class="btn btn-danger" id="clearLogs">清空</button></div>
+      <pre class="logs" id="logOutput">正在读取日志…</pre>
+    </section>
+
+    <section class="page" data-page="about">
+      <h1 class="page-title">关于</h1>
+      <p class="page-intro">面向现代 Android Root 生态重新设计的 OxideBot 后台运行环境。</p>
+      <article class="card">
+        <div class="mark about-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 8.5 4.5 6M17 8.5 19.5 6M6.2 9.5h11.6a2 2 0 0 1 2 2v4.8a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2v-4.8a2 2 0 0 1 2-2Z"/><path d="M8 13.2h.01M16 13.2h.01M9 18.3V21M15 18.3V21" stroke-linecap="round"/></svg></div>
+        <h2 class="card-title" style="font-size:22px">OxideBot for Root</h2>
+        <p class="card-desc">同一个控制器、同一套界面，同时服务于模块 WebUI、原生 Android 管理器和命令行。</p>
+        <div class="facts">
+          <div class="fact"><span>模块版本</span><span id="version">—</span></div>
+          <div class="fact"><span>模块 ID</span><span>oxidebot_root</span></div>
+          <div class="fact"><span>数据目录</span><span>/data/adb/oxidebot</span></div>
+          <div class="fact"><span>兼容</span><span>Magisk · KernelSU · SukiSU · APatch</span></div>
+          <div class="fact"><span>许可证</span><span>GPL-3.0-only</span></div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="主导航">
+    <button class="nav-item active" data-target="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg><span>状态</span></button>
+    <button class="nav-item" data-target="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.4 4a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.4.2.75.54 1 .94.17.33.27.7.27 1.06H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg><span>配置</span></button>
+    <button class="nav-item" data-target="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg><span>日志</span></button>
+    <button class="nav-item" data-target="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg><span>关于</span></button>
+  </nav>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      const CTL = '/data/adb/modules/oxidebot_root/scripts/oxidebotctl';
+      const $ = (selector) => document.querySelector(selector);
+      let state = { status: 'unknown' };
+      let busy = false;
+      let toastTimer;
+
+      function shellExec(command) {
+        if (window.ksu && typeof window.ksu.exec === 'function') {
+          return new Promise((resolve, reject) => {
+            const callback = `oxideExec_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            window[callback] = (errno, stdout, stderr) => {
+              delete window[callback];
+              resolve({ errno: Number(errno), stdout: stdout || '', stderr: stderr || '' });
+            };
+            try { window.ksu.exec(command, '{}', callback); }
+            catch (error) { delete window[callback]; reject(error); }
+          });
+        }
+        if (window.OxideNative && typeof window.OxideNative.exec === 'function') {
+          return new Promise((resolve, reject) => {
+            const callback = `oxideNative_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            window[callback] = (errno, stdout, stderr) => {
+              delete window[callback];
+              resolve({ errno: Number(errno), stdout: stdout || '', stderr: stderr || '' });
+            };
+            try { window.OxideNative.exec(command, callback); }
+            catch (error) { delete window[callback]; reject(error); }
+          });
+        }
+        return Promise.resolve({ errno: 127, stdout: '', stderr: '当前页面不在受支持的 Root 管理器或 OxideBot App 中。' });
+      }
+
+      function notify(message) {
+        const toast = $('#toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+        try { if (window.ksu?.toast) window.ksu.toast(message); } catch (_) {}
+      }
+
+      function parseProperties(text) {
+        return text.split(/\r?\n/).reduce((result, line) => {
+          const split = line.indexOf('=');
+          if (split > 0) result[line.slice(0, split)] = line.slice(split + 1);
+          return result;
+        }, {});
+      }
+
+      function formatDuration(seconds) {
+        seconds = Math.max(0, Number(seconds) || 0);
+        if (!seconds) return '—';
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (days) return `${days} 天 ${hours} 小时`;
+        if (hours) return `${hours} 小时 ${minutes} 分`;
+        return `${minutes} 分 ${seconds % 60} 秒`;
+      }
+
+      function renderStatus() {
+        const running = state.status === 'running';
+        $('#statusDot').classList.toggle('running', running);
+        $('#statusTitle').textContent = running ? '运行中' : '已停止';
+        $('#statusDetail').textContent = running ? `后台进程 PID ${state.pid || '—'}，OxideBot 正在处理消息` : (state.configured === 'true' ? '服务当前没有运行' : '完成环境配置后即可启动');
+        $('#mainAction').textContent = running ? '停止服务' : '启动服务';
+        $('#mainAction').className = `btn ${running ? 'btn-danger' : 'btn-primary'}`;
+        $('#configNotice').classList.toggle('show', state.configured !== 'true');
+        $('#uptime').textContent = running ? formatDuration(state.uptime_seconds) : '—';
+        $('#abi').textContent = state.abi || '—';
+        $('#rootManager').textContent = state.root_manager || '—';
+        $('#autostart').textContent = state.autostart === 'true' ? '已启用' : '已关闭';
+        $('#version').textContent = state.version || '—';
+        $('#lastUpdated').textContent = `更新于 ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+      }
+
+      async function refreshStatus(silent = false) {
+        const icon = $('#refreshButton svg');
+        if (!silent) icon.classList.add('spin');
+        try {
+          const result = await shellExec(`${CTL} status --properties`);
+          if (result.errno !== 0) throw new Error(result.stderr || '状态读取失败');
+          state = parseProperties(result.stdout);
+          renderStatus();
+        } catch (error) {
+          $('#statusTitle').textContent = '连接失败';
+          $('#statusDetail').textContent = String(error.message || error);
+          if (!silent) notify('无法读取 Root 服务状态');
+        } finally { icon.classList.remove('spin'); }
+      }
+
+      async function serviceAction(action) {
+        if (busy) return;
+        busy = true;
+        const buttons = [$('#mainAction'), $('#restartAction')];
+        buttons.forEach(button => button.disabled = true);
+        try {
+          const result = await shellExec(`${CTL} ${action}`);
+          const message = (result.stdout || result.stderr || '').trim().split('\n').pop();
+          notify(message || (result.errno === 0 ? '操作完成' : '操作失败'));
+          await refreshStatus(true);
+        } catch (error) { notify(String(error.message || error)); }
+        finally { busy = false; buttons.forEach(button => button.disabled = false); }
+      }
+
+      function encodeBase64(value) {
+        const bytes = new TextEncoder().encode(value);
+        let binary = '';
+        bytes.forEach(byte => binary += String.fromCharCode(byte));
+        return btoa(binary);
+      }
+
+      function decodeBase64(value) {
+        const binary = atob(value.replace(/\s/g, ''));
+        return new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0)));
+      }
+
+      async function loadConfig() {
+        $('#envEditor').value = '正在安全读取配置…';
+        const result = await shellExec(`${CTL} config-export`);
+        if (result.errno === 0) {
+          try { $('#envEditor').value = decodeBase64(result.stdout); }
+          catch (_) { $('#envEditor').value = ''; notify('配置解码失败'); }
+        } else {
+          $('#envEditor').value = '';
+          notify(result.stderr || '配置读取失败');
+        }
+      }
+
+      async function saveConfig() {
+        const button = $('#saveConfig');
+        button.disabled = true;
+        const encoded = encodeBase64($('#envEditor').value.replace(/\r\n/g, '\n'));
+        const result = await shellExec(`${CTL} config-import ${encoded}`);
+        notify((result.stdout || result.stderr || '保存失败').trim());
+        button.disabled = false;
+        await refreshStatus(true);
+      }
+
+      async function loadLogs() {
+        $('#logOutput').textContent = '正在读取日志…';
+        const result = await shellExec(`${CTL} logs 300`);
+        $('#logOutput').textContent = result.stdout || result.stderr || '暂时没有日志。';
+        $('#logOutput').scrollTop = $('#logOutput').scrollHeight;
+      }
+
+      async function clearLogs() {
+        const result = await shellExec(`${CTL} clear-logs`);
+        notify((result.stdout || result.stderr).trim());
+        await loadLogs();
+      }
+
+      function navigate(target) {
+        document.querySelectorAll('.page').forEach(page => page.classList.toggle('active', page.dataset.page === target));
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.target === target));
+        if (target === 'config') loadConfig();
+        if (target === 'logs') loadLogs();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      $('#refreshButton').addEventListener('click', () => refreshStatus());
+      $('#mainAction').addEventListener('click', () => serviceAction(state.status === 'running' ? 'disable' : 'enable'));
+      $('#restartAction').addEventListener('click', () => serviceAction('restart'));
+      $('#saveConfig').addEventListener('click', saveConfig);
+      $('#refreshLogs').addEventListener('click', loadLogs);
+      $('#clearLogs').addEventListener('click', clearLogs);
+      document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => navigate(item.dataset.target)));
+
+      refreshStatus();
+      setInterval(() => { if (document.visibilityState === 'visible' && $('.page.active').dataset.page === 'home') refreshStatus(true); }, 5000);
+    })();
+  </script>
+</body>
+</html>
