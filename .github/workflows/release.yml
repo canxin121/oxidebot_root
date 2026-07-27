@@ -15,44 +15,125 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Test controller
         run: bash tests/controller_test.sh
+
+  binaries:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-linux-android
+          - armv7-linux-androideabi
+          - x86_64-linux-android
+          - i686-linux-android
+    steps:
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+      - uses: android-actions/setup-android@v3
+      - name: Install NDK
+        run: sdkmanager --install 'ndk;29.0.14206865'
+      - name: Build ${{ matrix.target }}
+        run: >-
+          ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865"
+          bash runner/scripts/build-android.sh "${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxidebot-binary-${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 1
+          path: runner/target/${{ matrix.target }}/release/my_oxidebot
+
+  manager:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
-      - name: Install NDK
-        run: sdkmanager --install 'ndk;29.0.14206865'
-      - name: Build OxideBot Android binaries
-        run: ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865" bash runner/scripts/build-android.sh
-      - name: Build module
-        run: BINARY_DIR=runner/target bash build.sh
       - name: Build Android manager
         working-directory: manager-app
         run: |
           ./gradlew assembleDebug
           version="$(sed -n 's/^version=//p' ../module.prop)"
-          cp app/build/outputs/apk/debug/app-debug.apk "../build/OxideBot-Manager-${version}-debug.apk"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/OxideBot-Manager-${version}-debug.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxidebot-manager
+          if-no-files-found: error
+          retention-days: 1
+          path: manager-app/dist/*.apk
+
+  module:
+    needs: binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-binary-aarch64-linux-android
+          path: runner/target/aarch64-linux-android/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-binary-armv7-linux-androideabi
+          path: runner/target/armv7-linux-androideabi/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-binary-x86_64-linux-android
+          path: runner/target/x86_64-linux-android/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-binary-i686-linux-android
+          path: runner/target/i686-linux-android/release
+      - name: Build module ZIP
+        run: BINARY_DIR=runner/target bash build.sh
+      - name: Verify module ZIP
+        run: unzip -t build/oxidebot-root-*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oxidebot-module
+          if-no-files-found: error
+          retention-days: 1
+          path: build/*.zip
+
+  bundle:
+    needs: [module, manager]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-module
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: oxidebot-manager
+          path: dist
       - uses: actions/upload-artifact@v4
         with:
           name: oxidebot-root
           if-no-files-found: error
           retention-days: 14
-          path: |
-            build/*.zip
-            build/*.apk
+          path: dist/*
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: bundle
     runs-on: ubuntu-latest
     permissions:
       contents: write
