@@ -88,6 +88,16 @@ bash tests/controller_test.sh
 
 项目的发布工作流会构建四种 ABI、运行控制器测试、生成模块 ZIP 和可侧载的管理 APK。
 
+普通 `main`/PR 构建使用 Android Debug 签名，仅作为 Actions artifact 提供测试。创建 `v*`
+tag 前，需要在 GitHub Actions 配置以下仓库 Secrets，CD 才会构建可长期升级的 Release APK：
+
+- `ANDROID_SIGNING_KEY_BASE64`：JKS/PKCS12 文件的 Base64 内容
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+任一签名 Secret 缺失时，tag 构建会明确失败，不会把 Debug APK 发布为正式版本。
+
 ## 安全说明
 
 - 不要把 Telegram Token 写入源码、Issue 或公开日志。

@@ -2,6 +2,11 @@ plugins {
     id("com.android.application")
 }
 
+val releaseKeystoreFile = providers.environmentVariable("OXIDEBOT_KEYSTORE_FILE").orNull
+val releaseKeystorePassword = providers.environmentVariable("OXIDEBOT_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("OXIDEBOT_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("OXIDEBOT_KEY_PASSWORD").orNull
+
 android {
     namespace = "io.github.canxin121.oxidebotroot"
     compileSdk = 35
@@ -14,8 +19,25 @@ android {
         versionName = "1.0.0"
     }
 
+    val releaseSigning = if (
+        !releaseKeystoreFile.isNullOrBlank()
+        && !releaseKeystorePassword.isNullOrBlank()
+        && !releaseKeyAlias.isNullOrBlank()
+        && !releaseKeyPassword.isNullOrBlank()
+    ) {
+        signingConfigs.create("release") {
+            storeFile = file(releaseKeystoreFile)
+            storePassword = releaseKeystorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    } else {
+        null
+    }
+
     buildTypes {
         release {
+            releaseSigning?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
