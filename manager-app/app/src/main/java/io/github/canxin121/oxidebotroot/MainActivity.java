@@ -68,7 +68,7 @@ public final class MainActivity extends Activity {
 
     public final class RootBridge {
         private static final String CONTROLLER =
-                "/data/adb/modules/oxidebot_root/scripts/oxidebotctl";
+                "/data/adb/modules/" + BuildConfig.MODULE_ID + "/scripts/oxidebotctl";
         private final Pattern allowed = Pattern.compile(
                 "^" + Pattern.quote(CONTROLLER)
                         + " (?:status --properties|start|stop|restart|enable|disable|logs [0-9]{1,4}|clear-logs|config-export|config-import [A-Za-z0-9+/=]{1,65536})$");

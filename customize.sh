@@ -6,16 +6,18 @@ PROPFILE=false
 POSTFSDATA=false
 LATESTARTSERVICE=true
 
-ui_print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-ui_print "  OxideBot for Root v1.0.0"
-ui_print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
 if [ "$BOOTMODE" != "true" ]; then
   abort "! 请从 Root 管理器安装；不支持 Recovery 安装"
 fi
 
 # customize.sh 会在模块主体自动解压前执行，因此在这里统一展开安装内容。
 unzip -o "$ZIPFILE" -x 'META-INF/*' -d "$MODPATH" >&2
+
+module_name=$(sed -n 's/^name=//p' "$MODPATH/module.prop")
+module_version=$(sed -n 's/^version=//p' "$MODPATH/module.prop")
+ui_print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+ui_print "  $module_name $module_version"
+ui_print "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 case "$ARCH" in
   arm64) module_abi="arm64-v8a" ;;
@@ -38,7 +40,7 @@ else
 fi
 ui_print "- 设备架构：$module_abi"
 
-DATA_DIR=${OXIDEBOT_DATA_DIR:-/data/adb/oxidebot}
+DATA_DIR=${OXIDEBOT_DATA_DIR:-/data/adb/__MODULE_ID__}
 mkdir -p "$DATA_DIR/run" "$DATA_DIR/logs" "$DATA_DIR/data"
 
 if [ ! -f "$DATA_DIR/env.conf" ]; then
@@ -62,5 +64,5 @@ set_perm_recursive "$DATA_DIR" 0 0 0700 0600
 # KernelSU/SukiSU/APatch 会为 webroot 自动设置正确的权限和 SELinux 标签。
 ui_print "- WebUI：受支持的管理器可直接点击“打开”"
 ui_print "- 配置：$DATA_DIR/env.conf"
-ui_print "- 首次启动前请填写 TELEGRAM_BOT_TOKEN"
+ui_print "- 首次启动前请在 WebUI 配置应用所需的环境变量"
 ui_print "- 安装完成，请重启设备"

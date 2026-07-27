@@ -2,7 +2,7 @@
 
 MODDIR=${0%/*}
 CTL="$MODDIR/scripts/oxidebotctl"
-DATA_DIR=/data/adb/oxidebot
+DATA_DIR=/data/adb/__MODULE_ID__
 
 if [ -x "$CTL" ]; then
   "$CTL" disable >/dev/null 2>&1

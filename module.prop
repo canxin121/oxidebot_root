@@ -1,7 +1,7 @@
-id=oxidebot_root
-name=OxideBot for Root
-version=v1.0.0
-versionCode=10000
-author=canxin121
-description=OxideBot 后台服务 · Magisk / KernelSU / SukiSU Ultra / APatch
-updateJson=https://raw.githubusercontent.com/canxin121/oxidebot_root/main/update.json
+id=my_oxidebot
+name=My OxideBot
+version=v0.1.0
+versionCode=1
+author=your-github-name
+description=My custom OxideBot application for Android Root
+updateJson=https://github.com/your-name/your-repository/releases/latest/download/update.json

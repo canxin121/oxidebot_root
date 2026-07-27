@@ -2,7 +2,7 @@
 
 MODDIR=${0%/*}/..
 CTL="$MODDIR/scripts/oxidebotctl"
-DATA_DIR=/data/adb/oxidebot
+DATA_DIR=/data/adb/__MODULE_ID__
 RUN_DIR="$DATA_DIR/run"
 SUPERVISOR_PID="$RUN_DIR/supervisor.pid"
 

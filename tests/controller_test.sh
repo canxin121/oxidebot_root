@@ -8,6 +8,7 @@ data_dir="$test_root/data"
 cleanup() {
   if [[ -f "$module_dir/scripts/oxidebotctl" ]]; then
     env OXIDEBOT_MODDIR="$module_dir" OXIDEBOT_DATA_DIR="$data_dir" OXIDEBOT_ABI=arm64-v8a \
+      OXIDEBOT_REQUIRED_ENV=TELEGRAM_BOT_TOKEN \
       sh "$module_dir/scripts/oxidebotctl" disable >/dev/null 2>&1 || true
   fi
   rm -rf "$test_root"
@@ -22,7 +23,7 @@ cp "$project_dir/env.example" "$module_dir/env.example"
 cp "$project_dir/tests/fake_oxidebot.sh" "$module_dir/bin/arm64-v8a/oxidebot"
 chmod 0755 "$module_dir/scripts/oxidebotctl" "$module_dir/bin/arm64-v8a/oxidebot"
 
-ctl=(env OXIDEBOT_MODDIR="$module_dir" OXIDEBOT_DATA_DIR="$data_dir" OXIDEBOT_ABI=arm64-v8a sh "$module_dir/scripts/oxidebotctl")
+ctl=(env OXIDEBOT_MODDIR="$module_dir" OXIDEBOT_DATA_DIR="$data_dir" OXIDEBOT_ABI=arm64-v8a OXIDEBOT_REQUIRED_ENV=TELEGRAM_BOT_TOKEN sh "$module_dir/scripts/oxidebotctl")
 
 config='TELEGRAM_BOT_TOKEN=test-token
 RUST_LOG=debug

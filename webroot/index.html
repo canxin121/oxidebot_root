@@ -141,7 +141,7 @@
     <header class="topbar">
       <div class="brand">
         <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 8.5 4.5 6M17 8.5 19.5 6M6.2 9.5h11.6a2 2 0 0 1 2 2v4.8a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2v-4.8a2 2 0 0 1 2-2Z"/><path d="M8 13.2h.01M16 13.2h.01M9 18.3V21M15 18.3V21" stroke-linecap="round"/></svg></div>
-        <div><div class="brand-title">OxideBot</div><div class="brand-sub">Root service</div></div>
+        <div><div class="brand-title" id="brandTitle">OxideBot</div><div class="brand-sub">Root service</div></div>
       </div>
       <button class="icon-btn" id="refreshButton" aria-label="刷新"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M18.5 9A7.5 7.5 0 0 0 5.7 6.5L4 8m2 7a7.5 7.5 0 0 0 12.3 2.5L20 16" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </header>
@@ -156,7 +156,7 @@
           <button class="btn btn-secondary" id="restartAction" title="重启服务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6v5h-5"/><path d="M18.5 9A7.5 7.5 0 1 0 19 16" stroke-linecap="round"/></svg><span>重启</span></button>
         </div>
       </article>
-      <div class="notice" id="configNotice">还没有设置 Telegram Token。请打开「配置」页填写环境变量，保存后启动服务。</div>
+      <div class="notice" id="configNotice">还没有设置必填环境变量。请打开「配置」页填写，保存后启动服务。</div>
       <div class="section-head"><h2>运行概览</h2><span id="lastUpdated">—</span></div>
       <div class="grid">
         <div class="metric"><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg><div class="metric-label">运行时间</div><div class="metric-value" id="uptime">—</div></div>
@@ -171,7 +171,7 @@
       <p class="page-intro">每行填写一个 <code>KEY=value</code>。配置保存在模块外部，升级不会覆盖；内容只会通过 Root 桥接在本机读写。</p>
       <article class="card">
         <h2 class="card-title">env.conf</h2>
-        <p class="card-desc">至少需要 <code>TELEGRAM_BOT_TOKEN</code>。无需引号；等号后的全部内容都会作为变量值原样传给 OxideBot。</p>
+        <p class="card-desc">本应用要求：<code id="requiredEnvText">请查看 runner 代码</code>。无需引号；等号后的全部内容都会作为变量值原样传给 OxideBot。</p>
         <div class="editor-wrap"><textarea id="envEditor" spellcheck="false" autocomplete="off" placeholder="TELEGRAM_BOT_TOKEN=\nRUST_LOG=info"></textarea></div>
         <div class="config-actions">
           <div class="secure"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>权限 0600</div>
@@ -196,12 +196,12 @@
       <p class="page-intro">面向现代 Android Root 生态重新设计的 OxideBot 后台运行环境。</p>
       <article class="card">
         <div class="mark about-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 8.5 4.5 6M17 8.5 19.5 6M6.2 9.5h11.6a2 2 0 0 1 2 2v4.8a2 2 0 0 1-2 2H6.2a2 2 0 0 1-2-2v-4.8a2 2 0 0 1 2-2Z"/><path d="M8 13.2h.01M16 13.2h.01M9 18.3V21M15 18.3V21" stroke-linecap="round"/></svg></div>
-        <h2 class="card-title" style="font-size:22px">OxideBot for Root</h2>
+        <h2 class="card-title" style="font-size:22px" id="aboutName">OxideBot</h2>
         <p class="card-desc">同一个控制器、同一套界面，同时服务于模块 WebUI、原生 Android 管理器和命令行。</p>
         <div class="facts">
           <div class="fact"><span>模块版本</span><span id="version">—</span></div>
-          <div class="fact"><span>模块 ID</span><span>oxidebot_root</span></div>
-          <div class="fact"><span>数据目录</span><span>/data/adb/oxidebot</span></div>
+          <div class="fact"><span>模块 ID</span><span>__MODULE_ID__</span></div>
+          <div class="fact"><span>数据目录</span><span>/data/adb/__MODULE_ID__</span></div>
           <div class="fact"><span>兼容</span><span>Magisk · KernelSU · SukiSU · APatch</span></div>
           <div class="fact"><span>许可证</span><span>GPL-3.0-only</span></div>
         </div>
@@ -219,7 +219,7 @@
 
   <script>
     (() => {
-      const CTL = '/data/adb/modules/oxidebot_root/scripts/oxidebotctl';
+      const CTL = '/data/adb/modules/__MODULE_ID__/scripts/oxidebotctl';
       const $ = (selector) => document.querySelector(selector);
       let state = { status: 'unknown' };
       let busy = false;
@@ -287,11 +287,18 @@
         $('#mainAction').textContent = running ? '停止服务' : '启动服务';
         $('#mainAction').className = `btn ${running ? 'btn-danger' : 'btn-primary'}`;
         $('#configNotice').classList.toggle('show', state.configured !== 'true');
+        const requiredEnv = state.required_env || '无（由应用自行检查）';
+        $('#requiredEnvText').textContent = requiredEnv;
+        $('#configNotice').textContent = state.required_env
+          ? `还没有设置必填环境变量：${state.required_env}。请打开「配置」页填写，保存后启动服务。`
+          : '当前应用没有声明必填环境变量。';
         $('#uptime').textContent = running ? formatDuration(state.uptime_seconds) : '—';
         $('#abi').textContent = state.abi || '—';
         $('#rootManager').textContent = state.root_manager || '—';
         $('#autostart').textContent = state.autostart === 'true' ? '已启用' : '已关闭';
         $('#version').textContent = state.version || '—';
+        $('#brandTitle').textContent = state.name || 'OxideBot';
+        $('#aboutName').textContent = state.name || 'OxideBot';
         $('#lastUpdated').textContent = `更新于 ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
       }
 

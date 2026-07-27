@@ -1,7 +1,7 @@
 #!/system/bin/sh
 
 MODDIR=${OXIDEBOT_MODDIR:-${0%/*}/..}
-DATA_DIR=${OXIDEBOT_DATA_DIR:-/data/adb/oxidebot}
+DATA_DIR=${OXIDEBOT_DATA_DIR:-/data/adb/__MODULE_ID__}
 RUN_DIR="$DATA_DIR/run"
 LOG_DIR="$DATA_DIR/logs"
 WORK_DIR="$DATA_DIR/data"
@@ -11,6 +11,7 @@ START_FILE="$RUN_DIR/started_at"
 EXIT_FILE="$RUN_DIR/last_exit"
 LOCK_DIR="$RUN_DIR/control.lock"
 LOG_FILE="$LOG_DIR/oxidebot.log"
+REQUIRED_ENV="${OXIDEBOT_REQUIRED_ENV:-__REQUIRED_ENV__}"
 
 ensure_dirs() {
   mkdir -p "$RUN_DIR" "$LOG_DIR" "$WORK_DIR"
@@ -79,15 +80,22 @@ enabled() {
 
 configured() {
   [ -f "$ENV_FILE" ] || return 1
-  token=$(sed -n 's/^TELEGRAM_BOT_TOKEN=//p' "$ENV_FILE" | tail -n 1)
-  [ -n "$token" ]
+  [ -z "$REQUIRED_ENV" ] && return 0
+  required_keys=$(printf '%s' "$REQUIRED_ENV" | tr ',' ' ')
+  for required_key in $required_keys; do
+    required_value=$(sed -n "s/^${required_key}=//p" "$ENV_FILE" | tail -n 1)
+    [ -n "$required_value" ] || return 1
+  done
+  return 0
 }
 
 set_description() {
   state=$1
   prop="$MODDIR/module.prop"
   [ -f "$prop" ] || return 0
-  sed -i "s|^description=.*|description=OxideBot 后台服务 · $state|" "$prop" 2>/dev/null
+  module_name=$(sed -n 's/^name=//p' "$prop" 2>/dev/null)
+  safe_name=$(printf '%s' "$module_name" | sed 's/[&|\\]/\\&/g')
+  sed -i "s|^description=.*|description=$safe_name · $state|" "$prop" 2>/dev/null
 }
 
 acquire_lock() {
@@ -165,7 +173,7 @@ start_service() {
   chmod 0755 "$bin"
 
   if ! configured; then
-    echo "尚未配置 TELEGRAM_BOT_TOKEN" >&2
+    echo "尚未配置必填环境变量：$REQUIRED_ENV" >&2
     set_description "⚠️ 等待配置"
     release_lock
     return 3
@@ -243,16 +251,19 @@ status_properties() {
   fi
   last_exit=$(sed -n '1p' "$EXIT_FILE" 2>/dev/null)
   version=$(sed -n 's/^version=//p' "$MODDIR/module.prop" 2>/dev/null)
+  module_name=$(sed -n 's/^name=//p' "$MODDIR/module.prop" 2>/dev/null)
   printf 'status=%s\n' "$service_status"
   printf 'pid=%s\n' "$pid"
   printf 'autostart=%s\n' "$autostart"
   printf 'configured=%s\n' "$has_config"
+  printf 'required_env=%s\n' "$REQUIRED_ENV"
   printf 'uptime_seconds=%s\n' "$uptime"
   printf 'started_at=%s\n' "$started_at"
   printf 'last_exit=%s\n' "$last_exit"
   printf 'abi=%s\n' "$(detect_abi)"
   printf 'root_manager=%s\n' "$(detect_root)"
   printf 'version=%s\n' "$version"
+  printf 'name=%s\n' "$module_name"
   printf 'binary=%s\n' "$(binary_path)"
   printf 'data_dir=%s\n' "$DATA_DIR"
 }
@@ -264,7 +275,7 @@ status_human() {
     echo "状态：⏹ 已停止"
   fi
   if enabled; then echo "自动启动：已启用"; else echo "自动启动：已关闭"; fi
-  if configured; then echo "环境配置：已配置"; else echo "环境配置：等待 TELEGRAM_BOT_TOKEN"; fi
+  if configured; then echo "环境配置：已配置"; else echo "环境配置：等待 $REQUIRED_ENV"; fi
   echo "Root：$(detect_root)"
   echo "架构：$(detect_abi)"
   echo "日志：$LOG_FILE"
