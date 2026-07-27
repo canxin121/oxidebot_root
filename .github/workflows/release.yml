@@ -45,7 +45,7 @@ jobs:
         run: >-
           ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865"
           bash runner/scripts/build-android.sh "${{ matrix.target }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oxidebot-binary-${{ matrix.target }}
           if-no-files-found: error
@@ -71,7 +71,7 @@ jobs:
           version="$(sed -n 's/^version=//p' ../module.prop)"
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk "dist/OxideBot-Manager-${version}-debug.apk"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oxidebot-manager
           if-no-files-found: error
@@ -84,19 +84,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-binary-aarch64-linux-android
           path: runner/target/aarch64-linux-android/release
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-binary-armv7-linux-androideabi
           path: runner/target/armv7-linux-androideabi/release
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-binary-x86_64-linux-android
           path: runner/target/x86_64-linux-android/release
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-binary-i686-linux-android
           path: runner/target/i686-linux-android/release
@@ -104,7 +104,7 @@ jobs:
         run: BINARY_DIR=runner/target bash build.sh
       - name: Verify module ZIP
         run: unzip -t build/oxidebot-root-*.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oxidebot-module
           if-no-files-found: error
@@ -116,15 +116,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-module
           path: dist
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-manager
           path: dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oxidebot-root
           if-no-files-found: error
@@ -168,7 +168,7 @@ jobs:
           version="$(sed -n 's/^version=//p' ../module.prop)"
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/OxideBot-Manager-${version}.apk"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oxidebot-manager-release
           if-no-files-found: error
@@ -182,11 +182,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-module
           path: dist
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: oxidebot-manager-release
           path: dist
