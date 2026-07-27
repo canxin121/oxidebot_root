@@ -58,16 +58,15 @@ su -c /data/adb/modules/oxidebot_root/scripts/oxidebotctl logs 200
 
 ## 本地构建
 
-先构建 [`my_oxidebot`](https://github.com/canxin121/my_oxidebot) 的四种 Android 目标：
+仓库内的 `runner` 是可公开构建的 OxideBot 运行程序入口。先构建它的四种 Android 目标：
 
 ```sh
-cd ../my_oxidebot
-bash scripts/build-android.sh
-cd ../oxidebot_root
+bash runner/scripts/build-android.sh
 bash build.sh
 ```
 
-也可以用 `BINARY_DIR=/path/to/target bash build.sh` 指定二进制目录。模块产物位于
+默认从 `runner/target` 打包，也可以用 `BINARY_DIR=/path/to/target bash build.sh` 指定其他
+二进制目录。模块产物位于
 `build/oxidebot-root-v*.zip`。
 
 构建原生管理 App：

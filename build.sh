@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "$0")" && pwd)"
-binary_root="${BINARY_DIR:-$project_dir/../my_oxidebot/target}"
+binary_root="${BINARY_DIR:-$project_dir/runner/target}"
 build_dir="$project_dir/build"
 stage_dir="$build_dir/staging"
 

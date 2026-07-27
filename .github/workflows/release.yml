@@ -32,12 +32,9 @@ jobs:
       - name: Install NDK
         run: sdkmanager --install 'ndk;29.0.14206865'
       - name: Build OxideBot Android binaries
-        run: |
-          git clone --depth=1 https://github.com/canxin121/my_oxidebot ../my_oxidebot
-          cd ../my_oxidebot
-          ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865" bash scripts/build-android.sh
+        run: ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/29.0.14206865" bash runner/scripts/build-android.sh
       - name: Build module
-        run: BINARY_DIR=../my_oxidebot/target bash build.sh
+        run: BINARY_DIR=runner/target bash build.sh
       - name: Build Android manager
         working-directory: manager-app
         run: |
