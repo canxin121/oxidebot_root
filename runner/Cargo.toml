@@ -8,8 +8,8 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.104"
-oxidebot = { git = "https://github.com/canxin121/oxidebot", rev = "4e1ba8bcdd24b8d3965809450847dbee2689f5ff", version = "1.0.0" }
-oxidebot-adapter-telegram = { git = "https://github.com/canxin121/oxidebot", rev = "4e1ba8bcdd24b8d3965809450847dbee2689f5ff", version = "1.0.0" }
+oxidebot = { git = "https://github.com/canxin121/oxidebot", rev = "5eb05f6242230fe988cd163d14d3a67241a2bbd2", version = "1.0.0" }
+oxidebot-adapter-telegram = { git = "https://github.com/canxin121/oxidebot", rev = "5eb05f6242230fe988cd163d14d3a67241a2bbd2", version = "1.0.0" }
 tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread"] }
 tracing-subscriber = "0.3.23"
 
