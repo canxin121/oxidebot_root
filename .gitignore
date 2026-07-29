@@ -1,6 +1,7 @@
 /bin/*/oxidebot
 /build/
 /manager-app/.gradle/
+/manager-app/build/
 /manager-app/app/build/
 /manager-app/app/src/main/assets/index.html
 /runner/target/

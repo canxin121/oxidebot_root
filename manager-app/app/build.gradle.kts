@@ -74,10 +74,11 @@ android {
 
     buildFeatures {
         buildConfig = true
+        resValues = true
     }
 }
 
-val syncWebUi by tasks.registering(Copy::class) {
+val syncWebUi = tasks.register<Copy>("syncWebUi") {
     inputs.file(templatePropertiesFile)
     from(rootProject.projectDir.resolve("../webroot"))
     into(layout.projectDirectory.dir("src/main/assets"))

@@ -28,6 +28,7 @@ public final class MainActivity extends Activity {
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
+    @SuppressWarnings("deprecation") // API 24–29 require the legacy system-UI flags.
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setStatusBarColor(Color.TRANSPARENT);

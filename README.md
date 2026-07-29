@@ -18,11 +18,11 @@ KernelSU、SukiSU Ultra 和 APatch 的模块，同时生成模块 WebUI 和配�
    moduleName=My OxideBot
    moduleAuthor=your-github-name
    moduleDescription=My custom OxideBot application for Android Root
-   versionName=0.1.0
+   versionName=1.0.0
    versionCode=1
    applicationId=dev.example.myoxidebot
    appName=My OxideBot
-   requiredEnv=TELEGRAM_BOT_TOKEN
+   requiredEnv=TELEGRAM_BOT_TOKEN,TELEGRAM_BOT_ID
    repository=your-name/your-repository
    ```
 
@@ -39,7 +39,7 @@ KernelSU、SukiSU Ultra 和 APatch 的模块，同时生成模块 WebUI 和配�
 | `moduleName` | Root 管理器和 WebUI 显示名称 | 建议保持简短、唯一 |
 | `moduleAuthor` | `module.prop` 作者 | GitHub 用户名或组织名 |
 | `moduleDescription` | 模块简介 | 不要换行 |
-| `versionName` | 模块、APK 和 Release 版本 | 推荐 SemVer，例如 `0.1.0` |
+| `versionName` | 模块、APK 和 Release 版本 | 推荐 SemVer，例如 `1.0.0` |
 | `versionCode` | Android/Root 数字版本 | 每次发布递增的整数 |
 | `applicationId` | Android APK 唯一包名 | 例如 `io.github.alice.mybot` |
 | `appName` | Android 桌面名称 | 可以与 `moduleName` 相同 |
@@ -54,8 +54,8 @@ KernelSU、SukiSU Ultra 和 APatch 的模块，同时生成模块 WebUI 和配�
 
 模板内的 runner 只是最小示例：
 
-- 使用 `telegram_bot_oxidebot` 接收 Telegram 事件；
-- 从 `TELEGRAM_BOT_TOKEN` 环境变量读取 Token；
+- 使用 OxideBot 1.0 官方 `oxidebot-adapter-telegram` 接收 Telegram 事件；
+- 从 `TELEGRAM_BOT_TOKEN` 和 `TELEGRAM_BOT_ID` 环境变量读取 Telegram 身份；
 - `/start` 返回模板说明；
 - `/echo <text>` 回复输入内容。
 
@@ -65,13 +65,12 @@ KernelSU、SukiSU Ultra 和 APatch 的模块，同时生成模块 WebUI 和配�
 典型的应用接线方式是：
 
 ```rust
-oxidebot::OxideBotManager::new()
-    .bot(my_bot_adapter)
-    .await
-    .filter(MyFilter)
-    .handler(MyHandler::new(...).await?)
-    .run_block()
-    .await
+OxideBot::with_state(AppState { /* your services */ })
+    .adapter(TelegramAdapter::new(token, bot_id)?)
+    .add(my_command)
+    .include(Module::new().help())
+    .run()
+    .await?
 ```
 
 你可以：
@@ -91,6 +90,8 @@ oxidebot::OxideBotManager::new()
 
 ```properties
 TELEGRAM_BOT_TOKEN=123456:your-token
+# Token 中冒号前的稳定数字，不是 @username
+TELEGRAM_BOT_ID=123456
 RUST_LOG=info
 MY_API_URL=https://example.com/api
 MY_API_KEY=secret
@@ -111,7 +112,7 @@ MY_API_KEY=secret
 
 ## 本地构建
 
-需要 Rust 1.97、Android SDK、Android NDK 29 和 Java 17。
+需要 Rust 1.97.1、Android SDK、Android NDK 29 和 Java 17。
 
 ```sh
 bash runner/scripts/build-android.sh
@@ -175,8 +176,8 @@ gh secret set ANDROID_KEY_PASSWORD
 然后确保 `template.properties` 中的 `versionName`、`versionCode` 已更新并提交，再发布：
 
 ```sh
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
+git tag -a v1.0.0 -m "v1.0.0"
+git push origin v1.0.0
 ```
 
 tag 必须严格等于 `v<versionName>`。CD 会发布：

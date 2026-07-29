@@ -12,10 +12,11 @@
 
 ```sh
 cd runner
-cargo check
-cargo generate-lockfile
+cargo +1.97.1 check --locked
+cargo +1.97.1 update
 ```
 
-不要在这里硬编码 Token。使用 Android 模块的 `env.conf`，然后通过 `std::env::var` 读取。
+不要在这里硬编码 Token。使用 Android 模块的 `env.conf`，然后通过 `std::env::var` 读取
+`TELEGRAM_BOT_TOKEN` 和 `TELEGRAM_BOT_ID`（Token 冒号前的稳定数字 ID）。
 runner 的 Cargo 包名固定为 `oxidebot_app`，模块/App 的用户可见身份由根目录
 `template.properties` 控制，通常无需修改包名。
